@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩管理系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  
+  <!-- 配置Tailwind自定义样式 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F46E5',
+            secondary: '#10B981',
+            accent: '#8B5CF6',
+            neutral: '#1F2937',
+            light: '#F9FAFB'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .bg-blur {
+        backdrop-filter: blur(8px);
+      }
+      .transition-custom {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .animate-float {
+        animation: float 6s ease-in-out infinite;
+      }
+      .animate-pulse-slow {
+        animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+    }
+    
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+  </style>
+</head>
+
+<body class="font-inter bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen text-neutral antialiased">
+  <!-- 背景灵动效果 -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="absolute top-1/4 left-1/3 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-float"></div>
+    <div class="absolute bottom-1/3 right-1/4 w-80 h-80 bg-secondary/10 rounded-full blur-3xl animate-float" style="animation-delay: -2s;"></div>
+    <div class="absolute top-1/2 right-1/5 w-40 h-40 bg-accent/10 rounded-full blur-3xl animate-float" style="animation-delay: -4s;"></div>
+    <div class="absolute bottom-1/2 left-1/5 w-56 h-56 bg-primary/10 rounded-full blur-3xl animate-float" style="animation-delay: -1s;"></div>
+    
+    <!-- 动态线条 -->
+    <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent animate-pulse-slow"></div>
+    <div class="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-secondary/30 to-transparent animate-pulse-slow" style="animation-delay: -1s;"></div>
+    <div class="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-accent/30 to-transparent animate-pulse-slow" style="animation-delay: -2s;"></div>
+    <div class="absolute right-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-primary/30 to-transparent animate-pulse-slow" style="animation-delay: -3s;"></div>
+  </div>
+
+  <div class="container mx-auto px-4 py-8 relative z-10">
+    <!-- 头部标题 -->
+    <header class="text-center mb-10">
+      <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-neutral mb-2 text-shadow">
+        成绩管理系统
+      </h1>
+      <p class="text-gray-600 max-w-2xl mx-auto text-lg">
+        简洁高效的成绩管理工具，助你轻松掌握学习进度
+      </p>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- 左侧选科面板 -->
+      <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white rounded-2xl shadow-lg p-6 transform transition-custom hover:shadow-xl hover:-translate-y-1">
+          <h2 class="text-xl font-bold text-neutral mb-4 flex items-center">
+            <i class="fa fa-book mr-2 text-primary"></i>选择科目
+          </h2>
+          
+          <div class="space-y-3" id="subjects-container">
+            <!-- 科目选择按钮将通过JavaScript动态生成 -->
+          </div>
+          
+          <button id="add-subject-btn" class="w-full mt-4 py-2 px-4 bg-primary/10 text-primary rounded-lg font-medium transition-custom hover:bg-primary/20 flex items-center justify-center">
+            <i class="fa fa-plus mr-2"></i>添加科目
+          </button>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 transform transition-custom hover:shadow-xl hover:-translate-y-1">
+          <h2 class="text-xl font-bold text-neutral mb-4 flex items-center">
+            <i class="fa fa-sort mr-2 text-primary"></i>排序方式
+          </h2>
+          
+          <div class="space-y-3">
+            <button id="sort-asc-btn" class="w-full py-2 px-4 bg-gray-100 text-neutral rounded-lg font-medium transition-custom hover:bg-gray-200 flex items-center justify-center">
+              <i class="fa fa-sort-amount-asc mr-2"></i>从小到大
+            </button>
+            <button id="sort-desc-btn" class="w-full py-2 px-4 bg-gray-100 text-neutral rounded-lg font-medium transition-custom hover:bg-gray-200 flex items-center justify-center">
+              <i class="fa fa-sort-amount-desc mr-2"></i>从大到小
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 右侧成绩展示区 -->
+      <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl shadow-lg p-6 transform transition-custom hover:shadow-xl hover:-translate-y-1">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <h2 class="text-xl font-bold text-neutral mb-4 md:mb-0 flex items-center">
+              <i class="fa fa-list-alt mr-2 text-primary"></i>成绩列表
+            </h2>
+            <div class="flex space-x-2">
+              <button id="add-score-btn" class="py-2 px-4 bg-primary text-white rounded-lg font-medium transition-custom hover:bg-primary/90 flex items-center">
+                <i class="fa fa-plus mr-2"></i>添加成绩
+              </button>
+              <button id="clear-all-btn" class="py-2 px-4 bg-red-100 text-red-700 rounded-lg font-medium transition-custom hover:bg-red-200 flex items-center">
+                <i class="fa fa-trash mr-2"></i>清空成绩
+              </button>
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-max">
+              <thead>
+                <tr class="border-b border-gray-200">
+                  <th class="py-3 px-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">科目</th>
+                  <th class="py-3 px-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                  <th class="py-3 px-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">分数</th>
+                  <th class="py-3 px-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody id="scores-table-body">
+                <!-- 成绩数据将通过JavaScript动态生成 -->
+                <tr class="text-center text-gray-500">
+                  <td colspan="4" class="py-8">暂无成绩数据，请添加成绩</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- 新增显示总成绩的区域 -->
+          <div class="mt-4">
+            <p class="text-lg font-bold">总成绩: <span id="total-score">0</span></p>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 transform transition-custom hover:shadow-xl hover:-translate-y-1">
+          <h2 class="text-xl font-bold text-neutral mb-4 flex items-center">
+            <i class="fa fa-bar-chart mr-2 text-primary"></i>成绩统计
+          </h2>
+          <div class="h-64">
+            <canvas id="score-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 添加成绩模态框 -->
+  <div id="add-score-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-custom">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-neutral">添加成绩</h3>
+        <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <form id="score-form" class="space-y-4">
+        <div>
+          <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">科目</label>
+          <select id="subject-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+            <!-- 科目选项将通过JavaScript动态生成 -->
+          </select>
+        </div>
+        
+        <div>
+          <label for="date" class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+          <input type="date" id="date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+        </div>
+        
+        <div>
+          <label for="score" class="block text-sm font-medium text-gray-700 mb-1 flex justify-between">
+            <span>分数</span>
+            <span class="text-xs text-gray-500">任意非负实数</span>
+          </label>
+          <input type="number" id="score-input" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" placeholder="例如：90.5">
+        </div>
+        
+        <div class="flex space-x-3">
+          <button type="button" id="cancel-score-btn" class="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium transition-custom hover:bg-gray-200">
+            取消
+          </button>
+          <button type="submit" class="flex-1 py-2 px-4 bg-primary text-white rounded-lg font-medium transition-custom hover:bg-primary/90">
+            保存
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // 从本地存储加载数据
+    function loadData() {
+      const savedData = localStorage.getItem('gradeManagementSystem');
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          data.subjects = parsedData.subjects || [];
+          data.scores = parsedData.scores || [];
+          data.currentSubject = parsedData.currentSubject;
+        } catch (e) {
+          console.error('Failed to parse saved data:', e);
+        }
+      }
+    }
+
+    // 保存数据到本地存储
+    function saveData() {
+      const dataToSave = {
+        subjects: data.subjects,
+        scores: data.scores,
+        currentSubject: data.currentSubject
+      };
+      localStorage.setItem('gradeManagementSystem', JSON.stringify(dataToSave));
+    }
+
+    // 初始化数据
+    const data = {
+      subjects: ['语文', '数学', '英语', '物理', '化学', '生物', '历史', '地理', '政治'],
+      scores: [],
+      currentSubject: null
+    };
+
+    // 加载本地存储的数据
+    loadData();
+
+    // DOM元素
+    const subjectsContainer = document.getElementById('subjects-container');
+    const addSubjectBtn = document.getElementById('add-subject-btn');
+    const sortAscBtn = document.getElementById('sort-asc-btn');
+    const sortDescBtn = document.getElementById('sort-desc-btn');
+    const scoresTableBody = document.getElementById('scores-table-body');
+    const addScoreBtn = document.getElementById('add-score-btn');
+    const addScoreModal = document.getElementById('add-score-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelScoreBtn = document.getElementById('cancel-score-btn');
+    const scoreForm = document.getElementById('score-form');
+    const subjectSelect = document.getElementById('subject-select');
+    const dateInput = document.getElementById('date-input');
+    const scoreInput = document.getElementById('score-input');
+    const totalScoreElement = document.getElementById('total-score');
+    const clearAllBtn = document.getElementById('clear-all-btn');
+
+    // 渲染科目选择按钮
+    function renderSubjects() {
+      subjectsContainer.innerHTML = '';
+      
+      // 添加"全部"选项
+      const allButton = document.createElement('button');
+      allButton.className = `w-full py-2 px-4 bg-${data.currentSubject === null ? 'primary/10 text-primary' : 'gray-100 text-gray-700'} rounded-lg font-medium transition-custom hover:bg-gray-200 flex items-center justify-between`;
+      allButton.innerHTML = `
+        <span>全部</span>
+        <i class="fa fa-${data.currentSubject === null ? 'check' : 'circle-o'} text-sm"></i>
+      `;
+      allButton.addEventListener('click', () => {
+        data.currentSubject = null;
+        renderSubjects();
+        filterAndRenderScores();
+        saveData(); // 保存数据
+      });
+      subjectsContainer.appendChild(allButton);
+      
+      // 添加其他科目
+      data.subjects.forEach(subject => {
+        const button = document.createElement('button');
+        button.className = `w-full py-2 px-4 bg-${data.currentSubject === subject ? 'primary/10 text-primary' : 'gray-100 text-gray-700'} rounded-lg font-medium transition-custom hover:bg-gray-200 flex items-center justify-between`;
+        button.innerHTML = `
+          <span>${subject}</span>
+          <i class="fa fa-${data.currentSubject === subject ? 'check' : 'circle-o'} text-sm"></i>
+        `;
+        button.addEventListener('click', () => {
+          data.currentSubject = subject;
+          renderSubjects();
+          filterAndRenderScores();
+          saveData(); // 保存数据
+        });
+        subjectsContainer.appendChild(button);
+      });
+    }
+
+    // 添加新科目
+    addSubjectBtn.addEventListener('click', () => {
+      const newSubject = prompt('请输入新科目名称:');
+      if (newSubject && newSubject.trim() !== '') {
+        data.subjects.push(newSubject.trim());
+        renderSubjects();
+        // 如果是第一个科目，自动选择
+        if (data.subjects.length === 1) {
+          data.currentSubject = newSubject.trim();
+        }
+        saveData(); // 保存数据
+      }
+    });
+
+    // 渲染成绩列表
+    function renderScores(scores) {
+      scoresTableBody.innerHTML = '';
+      
+      if (scores.length === 0) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.className = 'text-center text-gray-500';
+        emptyRow.innerHTML = `<td colspan="4" class="py-8">暂无成绩数据，请添加成绩</td>`;
+        scoresTableBody.appendChild(emptyRow);
+        return;
+      }
+      
+      scores.forEach(score => {
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 hover:bg-gray-50 transition-custom';
+        row.innerHTML = `
+          <td class="py-3 px-4">
+            <div class="font-medium text-neutral">${score.subject}</div>
+          </td>
+          <td class="py-3 px-4">${formatDate(score.date)}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">${parseFloat(score.score).toFixed(2)}</span>
+          </td>
+          <td class="py-3 px-4">
+            <button class="text-red-500 hover:text-red-700 delete-score-btn" data-subject="${score.subject}" data-date="${score.date}">
+              <i class="fa fa-trash"></i>
+            </button>
+          </td>
+        `;
+        scoresTableBody.appendChild(row);
+      });
+      
+      // 添加删除成绩事件
+      document.querySelectorAll('.delete-score-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const subject = e.target.closest('.delete-score-btn').dataset.subject;
+          const date = e.target.closest('.delete-score-btn').dataset.date;
+          
+          if (confirm(`确定要删除${subject}在${formatDate(date)}的成绩吗？`)) {
+            data.scores = data.scores.filter(s => 
+              !(s.subject === subject && s.date === date)
+            );
+            filterAndRenderScores();
+            updateChart();
+            updateTotalScore(); // 更新总成绩
+            saveData(); // 保存数据
+          }
+        });
+      });
+    }
+
+    // 过滤并渲染成绩
+    function filterAndRenderScores() {
+      let filteredScores = data.scores;
+      
+      // 按科目过滤
+      if (data.currentSubject) {
+        filteredScores = filteredScores.filter(score => 
+          score.subject === data.currentSubject
+        );
+      }
+      
+      renderScores(filteredScores);
+    }
+
+    // 按分数从低到高排序
+    sortAscBtn.addEventListener('click', () => {
+      data.scores.sort((a, b) => parseFloat(a.score) - parseFloat(b.score));
+      filterAndRenderScores();
+      saveData(); // 保存数据
+    });
+
+    // 按分数从高到低排序
+    sortDescBtn.addEventListener('click', () => {
+      data.scores.sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+      filterAndRenderScores();
+      saveData(); // 保存数据
+    });
+
+    // 格式化日期
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    // 打开添加成绩模态框
+    function openModal() {
+      // 填充科目选择
+      subjectSelect.innerHTML = '';
+      
+      // 添加提示选项
+      const placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = '选择科目';
+      placeholderOption.selected = true;
+      subjectSelect.appendChild(placeholderOption);
+      
+      // 添加其他科目
+      data.subjects.forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        if (subject === data.currentSubject) {
+          option.selected = true;
+        }
+        subjectSelect.appendChild(option);
+      });
+      
+      // 设置默认日期为今天
+      const today = new Date().toISOString().split('T')[0];
+      dateInput.value = today;
+      
+      // 清空分数输入
+      scoreInput.value = '';
+      
+      // 显示模态框
+      addScoreModal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    // 关闭添加成绩模态框
+    function closeModal() {
+      addScoreModal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    // 清空所有成绩
+    clearAllBtn.addEventListener('click', () => {
+      if (confirm('确定要清空所有成绩数据吗？此操作不可恢复!')) {
+        data.scores = [];
+        filterAndRenderScores();
+        updateChart();
+        updateTotalScore();
+        saveData(); // 保存数据
+      }
+    });
+
+    // 事件监听
+    addScoreBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelScoreBtn.addEventListener('click', closeModal);
+
+    // 添加成绩表单提交
+    scoreForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const subject = subjectSelect.value;
+      const date = dateInput.value;
+      const score = parseFloat(scoreInput.value);
+      
+      if (!subject || !date || isNaN(score) || score < 0) {
+        alert('请选择科目并输入有效的非负实数分数');
+        return;
+      }
+      
+      // 检查是否已存在相同科目和日期的成绩
+      const existingIndex = data.scores.findIndex(s => 
+        s.subject === subject && s.date === date
+      );
+      
+      if (existingIndex !== -1) {
+        // 更新现有成绩
+        data.scores[existingIndex].score = score;
+      } else {
+        // 添加新成绩
+        data.scores.push({ subject, date, score });
+      }
+      
+      closeModal();
+      filterAndRenderScores();
+      updateChart();
+      updateTotalScore(); // 更新总成绩
+      saveData(); // 保存数据
+      
+      // 添加成功提示
+      const notification = document.createElement('div');
+      notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-y-0';
+      notification.textContent = '成绩保存成功!';
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.classList.add('translate-y-16', 'opacity-0');
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 2000);
+    });
+
+    // 初始化图表
+    let scoreChart;
+    function initChart() {
+      const ctx = document.getElementById('score-chart').getContext('2d');
+      
+      scoreChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: '平均分',
+            data: [],
+            backgroundColor: 'rgba(79, 70, 229, 0.6)',
+            borderColor: 'rgba(79, 70, 229, 1)',
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(31, 41, 55, 0.8)',
+              titleFont: {
+                size: 14,
+                family: 'Inter'
+              },
+              bodyFont: {
+                size: 13,
+                family: 'Inter'
+              },
+              padding: 12,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                font: {
+                  family: 'Inter'
+                }
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                font: {
+                  family: 'Inter'
+                }
+              }
+            }
+          },
+          animation: {
+            duration: 1000,
+            easing: 'easeOutQuart'
+          }
+        }
+      });
+    }
+
+    // 更新图表数据
+    function updateChart() {
+      if (!scoreChart) {
+        initChart();
+      }
+      
+      // 按科目分组计算平均分
+      const subjectScores = {};
+      data.scores.forEach(score => {
+        if (!subjectScores[score.subject]) {
+          subjectScores[score.subject] = [];
+        }
+        subjectScores[score.subject].push(parseFloat(score.score));
+      });
+      
+      // 计算平均分
+      const labels = [];
+      const averages = [];
+      
+      for (const subject in subjectScores) {
+        labels.push(subject);
+        const scores = subjectScores[subject];
+        const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        averages.push(parseFloat(average.toFixed(2)));
+      }
+      
+      // 更新图表数据
+      scoreChart.data.labels = labels;
+      scoreChart.data.datasets[0].data = averages;
+      scoreChart.update();
+    }
+
+    // 计算并更新总成绩
+    function updateTotalScore() {
+      const total = data.scores.reduce((sum, score) => sum + parseFloat(score.score), 0);
+      totalScoreElement.textContent = total.toFixed(2);
+    }
+
+    // 初始化应用
+    function initApp() {
+      renderSubjects();
+      filterAndRenderScores();
+      updateChart();
+      updateTotalScore(); // 初始化时计算总成绩
+    }
+
+    // 启动应用
+    initApp();
+  </script>
+</body>
+</html>
